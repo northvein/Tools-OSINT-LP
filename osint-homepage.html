@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSINT Workstation</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #171b21;
+    --panel-2: #1e232b;
+    --border: #2a3039;
+    --text: #d8dee6;
+    --muted: #8a94a3;
+    --accent: #4fb3a9;
+    --accent-dim: #2b5f5a;
+    --warn: #d9a441;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  header {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    align-items: flex-end; justify-content: space-between;
+    border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 20px;
+  }
+  h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .clocks { display: flex; gap: 20px; font-variant-numeric: tabular-nums; }
+  .clock .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .clock .val { font-size: 18px; font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; }
+
+  .opsec {
+    background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+    border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; font-size: 13.5px;
+  }
+  .opsec strong { color: var(--warn); }
+
+  .search {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 10px;
+  }
+  .search input, .filter input {
+    width: 100%; padding: 11px 14px; font-size: 15px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; outline: none;
+  }
+  .search input:focus, .filter input:focus { border-color: var(--accent); }
+  .engines { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  button, .engines label {
+    font: inherit; font-size: 13px; cursor: pointer;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
+  }
+  button.primary { background: var(--accent-dim); border-color: var(--accent); padding: 0 18px; font-size: 14px; }
+  button:hover { border-color: var(--accent); }
+  .engines label { display: inline-flex; align-items: center; gap: 6px; }
+  .engines input { accent-color: var(--accent); margin: 0; }
+
+  .filter { margin-bottom: 20px; }
+  .filter input { font-size: 14px; padding: 8px 12px; }
+
+  .grid {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+  section.card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  section.card h2 {
+    margin: 0 0 10px; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .1em; color: var(--accent);
+  }
+  section.card ul { list-style: none; margin: 0; padding: 0; }
+  section.card li { margin: 0; }
+  section.card li a {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 5px 6px; margin: 0 -6px; border-radius: 5px; text-decoration: none;
+  }
+  section.card li a:hover, section.card li a:focus-visible { background: var(--panel-2); outline: none; }
+  section.card li a small { color: var(--muted); font-size: 12px; text-align: right; }
+  .hidden { display: none !important; }
+
+  .notes { margin-top: 20px; }
+  .notes textarea {
+    width: 100%; min-height: 140px; resize: vertical;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    font: 13.5px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  }
+  .notes .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .notes .row span { color: var(--muted); font-size: 12px; }
+
+  footer { color: var(--muted); font-size: 12px; margin-top: 28px; text-align: center; }
+  kbd {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px;
+  }
+  @media (max-width: 560px) {
+    .clocks { gap: 14px; }
+    .clock .val { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1><span>&#9673;</span> OSINT Workstation</h1>
+      <div class="sub">Open-source intelligence launchpad</div>
+    </div>
+    <div class="clocks">
+      <div class="clock"><div class="lbl">UTC</div><div class="val" id="utc">--:--:--</div></div>
+      <div class="clock"><div class="lbl">Local</div><div class="val" id="local">--:--:--</div></div>
+      <div class="clock"><div class="lbl">Date (UTC)</div><div class="val" id="date">----</div></div>
+    </div>
+  </header>
+
+  <div class="opsec">
+    <strong>OPSEC check:</strong> VPN / sock-puppet browser profile active? Logged out of personal accounts?
+    Logging sources and timestamps (UTC) as you go? Archive pages before they change.
+  </div>
+
+  <form class="search" id="searchForm" autocomplete="off">
+    <input id="q" type="search" placeholder="Search term, username, email, domain, IP…" aria-label="Search query">
+    <button class="primary" type="submit">Search</button>
+  </form>
+  <div class="engines" id="engines"></div>
+
+  <div class="filter">
+    <input id="filter" type="search" placeholder="Filter links below…  (press / to focus)" aria-label="Filter links">
+  </div>
+
+  <main class="grid" id="grid"></main>
+
+  <div class="notes">
+    <div class="row"><strong>Scratch notes</strong><span id="saved">Saved locally in this browser only</span></div>
+    <textarea id="notes" placeholder="Leads, selectors, URLs to revisit…"></textarea>
+  </div>
+
+  <footer>
+    <kbd>/</kbd> filter links &nbsp;·&nbsp; <kbd>s</kbd> search box &nbsp;·&nbsp; <kbd>Esc</kbd> clear
+  </footer>
+</div>
+
+<script>
+// ---- Resources -------------------------------------------------------------
+const RESOURCES = [
+  { cat: "Directories & Frameworks", links: [
+    ["OSINT Framework", "https://osintframework.com", "Tool tree"],
+    ["Bellingcat Toolkit", "https://bellingcat.gitbook.io/toolkit", "Curated tools"],
+    ["Awesome OSINT", "https://github.com/jivoi/awesome-osint", "GitHub list"],
+    ["IntelTechniques", "https://inteltechniques.com", "Methods & tools"],
+    ["OSINT Dojo", "https://www.osintdojo.com", "Resources"],
+  ]},
+  { cat: "Search Engines", links: [
+    ["Google", "https://www.google.com", ""],
+    ["Bing", "https://www.bing.com", ""],
+    ["DuckDuckGo", "https://duckduckgo.com", ""],
+    ["Yandex", "https://yandex.com", "RU / CIS"],
+    ["Brave Search", "https://search.brave.com", "Independent index"],
+    ["Startpage", "https://www.startpage.com", "Private"],
+    ["Baidu", "https://www.baidu.com", "CN"],
+  ]},
+  { cat: "Usernames & People", links: [
+    ["WhatsMyName", "https://whatsmyname.app", "Username check"],
+    ["Namechk", "https://namechk.com", "Username check"],
+    ["Instant Username", "https://instantusername.com", "Username check"],
+    ["Social Searcher", "https://www.social-searcher.com", "Social mentions"],
+    ["IDCrawl", "https://www.idcrawl.com", "People search"],
+    ["Webmii", "https://webmii.com", "People search"],
+  ]},
+  { cat: "Email & Breach Data", links: [
+    ["Have I Been Pwned", "https://haveibeenpwned.com", "Breach lookup"],
+    ["Epieos", "https://epieos.com", "Email / phone"],
+    ["Hunter", "https://hunter.io", "Email patterns"],
+    ["EmailRep", "https://emailrep.io", "Reputation"],
+    ["DeHashed", "https://dehashed.com", "Breach search"],
+    ["IntelX", "https://intelx.io", "Leaks & archives"],
+  ]},
+  { cat: "Domains, IPs & Infrastructure", links: [
+    ["ICANN Lookup", "https://lookup.icann.org", "WHOIS / RDAP"],
+    ["ViewDNS", "https://viewdns.info", "Reverse lookups"],
+    ["DNSDumpster", "https://dnsdumpster.com", "DNS recon"],
+    ["crt.sh", "https://crt.sh", "Cert transparency"],
+    ["SecurityTrails", "https://securitytrails.com", "DNS history"],
+    ["Shodan", "https://www.shodan.io", "Exposed devices"],
+    ["Censys", "https://search.censys.io", "Hosts & certs"],
+    ["urlscan.io", "https://urlscan.io", "Page scan"],
+    ["VirusTotal", "https://www.virustotal.com", "URL / file rep"],
+    ["BuiltWith", "https://builtwith.com", "Site tech"],
+  ]},
+  { cat: "Web Archives", links: [
+    ["Wayback Machine", "https://web.archive.org", "Internet Archive"],
+    ["archive.today", "https://archive.ph", "Snapshots"],
+    ["Common Crawl", "https://index.commoncrawl.org", "Crawl index"],
+  ]},
+  { cat: "Images & Video", links: [
+    ["Google Lens", "https://lens.google.com", "Reverse image"],
+    ["Yandex Images", "https://yandex.com/images", "Reverse image"],
+    ["Bing Visual Search", "https://www.bing.com/visualsearch", "Reverse image"],
+    ["TinEye", "https://tineye.com", "Reverse image"],
+    ["Forensically", "https://29a.ch/photo-forensics", "Image forensics"],
+    ["FotoForensics", "https://fotoforensics.com", "ELA"],
+    ["Jimpl", "https://jimpl.com", "EXIF viewer"],
+    ["InVID / WeVerify", "https://www.invid-project.eu/tools-and-services/invid-verification-plugin", "Video verification"],
+  ]},
+  { cat: "Geolocation & Mapping", links: [
+    ["Google Maps", "https://www.google.com/maps", ""],
+    ["Google Earth", "https://earth.google.com/web", "3D / history"],
+    ["Sentinel Hub EO Browser", "https://apps.sentinel-hub.com/eo-browser", "Satellite"],
+    ["Mapillary", "https://www.mapillary.com/app", "Street imagery"],
+    ["Overpass Turbo", "https://overpass-turbo.eu", "OSM queries"],
+    ["SunCalc", "https://www.suncalc.org", "Shadow / sun angle"],
+    ["PeakVisor", "https://peakvisor.com", "Mountain ID"],
+    ["Wikimapia", "https://wikimapia.org", "Annotated map"],
+  ]},
+  { cat: "Companies & Money", links: [
+    ["OpenCorporates", "https://opencorporates.com", "Global registry"],
+    ["UK Companies House", "https://find-and-update.company-information.service.gov.uk", "UK"],
+    ["SEC EDGAR", "https://www.sec.gov/edgar/search", "US filings"],
+    ["OCCRP Aleph", "https://aleph.occrp.org", "Leaks & records"],
+    ["ICIJ Offshore Leaks", "https://offshoreleaks.icij.org", "Offshore entities"],
+    ["OpenSanctions", "https://www.opensanctions.org", "Sanctions / PEPs"],
+    ["LittleSis", "https://littlesis.org", "Power networks"],
+  ]},
+  { cat: "Transport Tracking", links: [
+    ["ADS-B Exchange", "https://globe.adsbexchange.com", "Unfiltered flights"],
+    ["Flightradar24", "https://www.flightradar24.com", "Flights"],
+    ["MarineTraffic", "https://www.marinetraffic.com", "Vessels"],
+    ["VesselFinder", "https://www.vesselfinder.com", "Vessels"],
+    ["OpenRailwayMap", "https://www.openrailwaymap.org", "Rail"],
+  ]},
+  { cat: "Crypto", links: [
+    ["Blockchair", "https://blockchair.com", "Multi-chain"],
+    ["Blockchain.com Explorer", "https://www.blockchain.com/explorer", "BTC"],
+    ["Etherscan", "https://etherscan.io", "ETH"],
+    ["Tronscan", "https://tronscan.org", "TRON"],
+  ]},
+  { cat: "Utilities & OPSEC", links: [
+    ["CyberChef", "https://gchq.github.io/CyberChef", "Decode / transform"],
+    ["BrowserLeaks", "https://browserleaks.com", "Fingerprint check"],
+    ["ipleak.net", "https://ipleak.net", "IP / DNS leak"],
+    ["DeepL", "https://www.deepl.com/translator", "Translation"],
+    ["Google Translate", "https://translate.google.com", "Translation"],
+    ["Hunchly", "https://www.hunch.ly", "Capture & logging"],
+  ]},
+  { cat: "Learning & Methodology", links: [
+    ["Bellingcat Guides", "https://www.bellingcat.com/category/resources/how-tos/", "How-tos"],
+    ["OSINT Curious", "https://osintcurious.com", "Community"],
+    ["Berkeley Protocol", "https://www.ohchr.org/en/publications/policy-and-methodological-publications/berkeley-protocol-digital-open-source", "Standards"],
+    ["GIJN Resources", "https://gijn.org/resource-center/", "Investigative journalism"],
+    ["Sector035 Week in OSINT", "https://sector035.nl", "Newsletter"],
+  ]},
+];
+
+// Quick-search engines; {q} is replaced with the encoded query.
+const ENGINES = [
+  ["Google",     "https://www.google.com/search?q={q}", true],
+  ["Bing",       "https://www.bing.com/search?q={q}", false],
+  ["DuckDuckGo", "https://duckduckgo.com/?q={q}", true],
+  ["Yandex",     "https://yandex.com/search/?text={q}", false],
+  ["Brave",      "https://search.brave.com/search?q={q}", false],
+  ["Wayback",    "https://web.archive.org/web/*/{q}*", false],
+  ["crt.sh",     "https://crt.sh/?q={q}", false],
+  ["Shodan",     "https://www.shodan.io/search?query={q}", false],
+  ["urlscan",    "https://urlscan.io/search/#{q}", false],
+  ["OpenCorporates", "https://opencorporates.com/companies?q={q}", false],
+];
+
+// ---- Render links ----------------------------------------------------------
+const grid = document.getElementById("grid");
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+grid.innerHTML = RESOURCES.map(({ cat, links }) => `
+  <section class="card" data-cat="${esc(cat.toLowerCase())}">
+    <h2>${esc(cat)}</h2>
+    <ul>${links.map(([name, url, note]) => `
+      <li data-text="${esc((name + " " + note + " " + url).toLowerCase())}">
+        <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">
+          <span>${esc(name)}</span><small>${esc(note)}</small>
+        </a>
+      </li>`).join("")}
+    </ul>
+  </section>`).join("");
+
+// ---- Filter ----------------------------------------------------------------
+const filter = document.getElementById("filter");
+filter.addEventListener("input", () => {
+  const f = filter.value.trim().toLowerCase();
+  grid.querySelectorAll("section.card").forEach(card => {
+    const catHit = card.dataset.cat.includes(f);
+    let any = false;
+    card.querySelectorAll("li").forEach(li => {
+      const hit = !f || catHit || li.dataset.text.includes(f);
+      li.classList.toggle("hidden", !hit);
+      any ||= hit;
+    });
+    card.classList.toggle("hidden", !any);
+  });
+});
+
+// ---- Multi-engine search ---------------------------------------------------
+const enginesEl = document.getElementById("engines");
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem("osint.engines") || "{}"); } catch {}
+enginesEl.innerHTML = ENGINES.map(([name, , def], i) => {
+  const on = name in saved ? saved[name] : def;
+  return `<label><input type="checkbox" data-i="${i}" ${on ? "checked" : ""}>${esc(name)}</label>`;
+}).join("");
+enginesEl.addEventListener("change", () => {
+  const state = {};
+  enginesEl.querySelectorAll("input").forEach(cb => state[ENGINES[cb.dataset.i][0]] = cb.checked);
+  try { localStorage.setItem("osint.engines", JSON.stringify(state)); } catch {}
+});
+
+document.getElementById("searchForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const q = document.getElementById("q").value.trim();
+  if (!q) return;
+  const picked = [...enginesEl.querySelectorAll("input:checked")].map(cb => ENGINES[cb.dataset.i][1]);
+  if (!picked.length) return;
+  picked.forEach(tpl => window.open(tpl.replace("{q}", encodeURIComponent(q)), "_blank", "noopener"));
+});
+
+// ---- Clocks ----------------------------------------------------------------
+const pad = n => String(n).padStart(2, "0");
+function tick() {
+  const d = new Date();
+  document.getElementById("utc").textContent = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  document.getElementById("local").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  document.getElementById("date").textContent = d.toISOString().slice(0, 10);
+}
+tick(); setInterval(tick, 1000);
+
+// ---- Notes -----------------------------------------------------------------
+const notes = document.getElementById("notes");
+try { notes.value = localStorage.getItem("osint.notes") || ""; } catch {}
+let t;
+notes.addEventListener("input", () => {
+  clearTimeout(t);
+  t = setTimeout(() => {
+    try { localStorage.setItem("osint.notes", notes.value); } catch {}
+  }, 300);
+});
+
+// ---- Keyboard shortcuts ----------------------------------------------------
+document.addEventListener("keydown", e => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (e.key === "Escape") {
+    filter.value = ""; filter.dispatchEvent(new Event("input"));
+    document.activeElement.blur();
+  } else if (!typing && e.key === "/") {
+    e.preventDefault(); filter.focus();
+  } else if (!typing && e.key === "s") {
+    e.preventDefault(); document.getElementById("q").focus();
+  }
+});
+</script>
+</body>
+</html>
